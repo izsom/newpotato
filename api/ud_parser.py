@@ -102,6 +102,7 @@ def parse(text_to_parse: TextToParse) -> Dict[str, Any]:
         for graph in models["parser"](to_parse):
             json_graph = graph.to_json()
             json_graphs.append(json_graph)
+            logging.info(f"Returned json UD-Graph: {json_graph}")
 
         return {"status": "ok", "graphs": json_graphs, "graph_type": graph_type}
 

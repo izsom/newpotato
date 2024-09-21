@@ -116,7 +116,7 @@ class GraphBasedExtractor(Extractor):
             for pred, tr_patterns in d["triplet_graphs_by_pred"].items()
         }
         self._get_matchers()
-
+        logging.info(f"{self.pred_graphs=}")
         self.patterns_to_sens = {
             Graph.from_penman(pn_graph, node_attr="name|upos"): set(sens)
             for pn_graph, sens in d["patterns_to_sens"].items()
@@ -241,6 +241,7 @@ class GraphBasedExtractor(Extractor):
                     pred_graphs[inferred_pred_graph] += 1
 
         self.pred_graphs = pred_graphs
+        
         self.all_arg_graphs = all_arg_graphs
         self.arg_graphs_by_pred = arg_graphs_by_pred
         self.triplet_graphs = triplet_graphs
@@ -256,13 +257,17 @@ class GraphBasedExtractor(Extractor):
                 patterns.append(((graph.G,), (), label))
             else:
                 patterns.append(((graph[0].G,), (), label))
+            logging.info(f"ZSOM --- {graph.to_penman()=}")
+        logging.info(f"ZSOM --- {patterns=}")
 
         matcher = GraphFormulaPatternMatcher(
             patterns, converter=None, case_sensitive=False
         )
+        logging.info(f"ZSOM --- {matcher=}")
         return matcher
 
     def _get_triplet_matchers(self):
+        logging.info(f"{self.triplet_graphs=}")
         return Counter(
             {
                 (
@@ -272,7 +277,7 @@ class GraphBasedExtractor(Extractor):
                     arg_root_indices,
                     inferred_node_indices,
                     graph,
-                ): count
+                ): count # {(keys) : value}
                 for (
                     graph,
                     arg_root_indices,
@@ -307,6 +312,7 @@ class GraphBasedExtractor(Extractor):
         self.pred_matcher = self._get_matcher_from_graphs(
             self.pred_graphs, label="PRED", threshold=1
         )
+        logging.info(f"pred_matcher ---- {self.pred_matcher=}")
         self.arg_matcher = self._get_matcher_from_graphs(
             self.all_arg_graphs, label="ARG", threshold=1
         )
@@ -370,29 +376,32 @@ class GraphBasedExtractor(Extractor):
         return GraphMappedTriplet(triplet, pred_subgraph, arg_subgraphs)
 
     def _match(self, matcher, sen_graph, attrs):
+        # get the subgraphs that match the given matcher
         for key, i, subgraphs in matcher.match(
             sen_graph.G, return_subgraphs=True, attrs=attrs
         ):
             for subgraph in subgraphs:
+                # extract the subgraph from sen_graph, that is consisted of the nodes of the 'subgraph'
                 ud_subgraph = sen_graph.subgraph(subgraph.nodes)
                 indices = frozenset(
                     idx
                     for idx, token in enumerate(ud_subgraph.tokens)
                     if token is not None
-                )
+                ) # indices of the tokens in the subgraph
                 logging.debug(f"MATCH: {indices=}, {ud_subgraph=}")
                 yield indices, ud_subgraph
 
     def _get_arg_cands(self, sen_graph):
         roots_to_cands_by_indices = defaultdict(dict)
         for indices, subgraph in self._match(
-            self.arg_matcher, sen_graph, attrs=("upos",)
+            self.arg_matcher, sen_graph, attrs=("upos",) # matches nodes based on the 'upos' attribute
         ):
-            roots_to_cands_by_indices[subgraph.root][indices] = subgraph
+            roots_to_cands_by_indices[subgraph.root][indices] = subgraph # root node as key
 
         arg_roots_to_arg_cands = {}
-        for root, cands in roots_to_cands_by_indices.items():
-            largest = max(cands.keys(), key=len)
+        for root, cands in roots_to_cands_by_indices.items(): # item is the key-value pair, root being the key and cands being the items
+            logging.info(f"{root=}, {cands=}") # cands={frozenset({10}): UDGraph(10_Schaden)}
+            largest = max(cands.keys(), key=len) # the key with the largest length of frozen set
             arg_roots_to_arg_cands[root] = (largest, cands[largest])
 
         return arg_roots_to_arg_cands
@@ -400,30 +409,32 @@ class GraphBasedExtractor(Extractor):
     def _gen_raw_triplets(
         self,
         sen,
-        sen_graph,
-        pred_cands,
-        arg_roots_to_arg_cands,
+        sen_graph, # is an instance of UDGraph
+        pred_cands, # e.g: {frozenset({21}): UDGraph(22_Angelegenheit)}
+        arg_roots_to_arg_cands, # e.g: arg_roots_to_arg_cands={2: (frozenset({2}), UDGraph(2_Gustav)), 4: (frozenset({4}), UDGraph(4_Bernds)), ...}
         include_partial,
         triplet_matchers=None,
     ):
         if triplet_matchers is None:
-            triplet_matchers = self.triplet_matchers
-
+            triplet_matchers = self.triplet_matchers # it is a counter object of a dictionary, described below
+        logging.info(f"{triplet_matchers=}")
         for (
-            triplet_matcher,
-            arg_root_indices,
-            inferred_node_indices,
-            patt_graph,
+            triplet_matcher, # a GraphFormulaPatternMatcher object
+            arg_root_indices, # a tuple of indices
+            inferred_node_indices, # a tuple of indices
+            patt_graph, # a Graph object
         ), freq in triplet_matchers.most_common():
 
             triplet_cands = set(
                 indices
                 for indices in self._match(triplet_matcher, sen_graph, attrs=("upos",))
-            )
+            ) # is the indices of the tokens in the sentence that match the triplet_matcher
+            logging.debug(f"{triplet_cands=}")
             for triplet_cand, triplet_graph in triplet_cands:
+                logging.info(f"Type of triplet_graph: {type(triplet_graph)}")
                 inferred_nodes = set(
-                    triplet_graph.nodes_by_lextop(inferred_node_indices)
-                )
+                    triplet_graph.nodes_by_lextop(inferred_node_indices) # defined in graph.py, part of class Graph
+                ) # returnes the nodes in a topological order, meaning source nodes precede the target nodes in a targeted graph
                 arg_roots = triplet_graph.nodes_by_lextop(arg_root_indices)
                 logging.debug("==========================")
                 logging.debug(f"{triplet_cand=}")
@@ -432,16 +443,20 @@ class GraphBasedExtractor(Extractor):
                 logging.debug(f"{arg_roots=}")
                 for pred_cand in pred_cands:
                     if not pred_cand.issubset(triplet_cand):
-                        return
+                        return # skip if pred_cand is not in the triplet
                     covered_args = triplet_cand - pred_cand - inferred_nodes
+                    logging.info(f"{pred_cand=}")
+                    logging.info(f"{covered_args=}")
                     args = [
-                        sorted(arg_roots_to_arg_cands[arg_root][0])
+                        sorted(arg_roots_to_arg_cands[arg_root][0]) # get the indices of potential arguments
                         if arg_root in covered_args
                         else None
                         for arg_root in arg_roots
                     ]
-                    partial = any(arg is None for arg in args)
-                    if partial and not include_partial:
+                    logging.info(f"{args=}")
+                    # if any arg is None, the triplet is partial
+                    partial = any(arg is None for arg in args) # boolean
+                    if partial and not include_partial: # when would it be partial? when is the root index None
                         continue
                     triplet = Triplet(pred_cand, args, toks=sen_graph.tokens)
                     try:
@@ -453,6 +468,8 @@ class GraphBasedExtractor(Extractor):
                         logging.info(
                             f"sentences with this pattern: {self.patterns_to_sens[patt_graph]}"
                         )
+                        logging.info(f"mapped triplet: {mapped_triplet}")
+                        logging.info(f"sentence: {sen}")
                         yield sen, mapped_triplet
                     except (
                         KeyError,
@@ -509,18 +526,21 @@ class GraphBasedExtractor(Extractor):
         for sen, sen_graph in self.parse_text(text):
             logging.debug("==========================")
             logging.debug("==========================")
-            logging.debug(f"{sen=}")
+            logging.debug(f"{sen_graph=}")
+            logging.info(f"{sen_graph.tokens=}")
+            logging.info(f"{sen_graph.G.nodes=}")
+            # sen_graph is an instance of UDGraph of the given sentence
             pred_cands = {
                 indices: subgraph
                 for indices, subgraph in self._match(
                     self.pred_matcher, sen_graph, attrs=None
-                )
-            }
-            logging.debug(f"{pred_cands=}")
-
+                ) # that match the predicate rules
+            } # an index of the tokens in the sentence and the Ugraph of that sentence
+            # get the root number and the corresponding largest UDGraph candidate
             arg_roots_to_arg_cands = self._get_arg_cands(sen_graph)
-            logging.debug(f"{arg_roots_to_arg_cands=}")
-
+            
+            logging.info(f"{arg_roots_to_arg_cands=}") # arg_roots_to_arg_cands={2: (frozenset({2}), UDGraph(2_Gustav)), 4: (frozenset({4}), UDGraph(4_Bernds)), ...
+            logging.info(f"{pred_cands=}") # {frozenset({21}): UDGraph(22_Angelegenheit)}
             yield from self.gen_raw_triplets(
                 sen,
                 sen_graph,
@@ -532,6 +552,7 @@ class GraphBasedExtractor(Extractor):
 
     def infer_triplets(self, text: str, **kwargs) -> List[Triplet]:
         triplets = sorted(set(triplet for sen, triplet in self._infer_triplets(text)))
+        logging.info(f"ZSOM --- {triplets=} for {text=}")
         return triplets
 
 
