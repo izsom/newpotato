@@ -86,7 +86,7 @@ class NPTerminalClient:
             text = input("> ")
 
             matches_by_text = self.hitl.extractor.extract_triplets_from_text(text)
-
+            logging.info(f"matches_by_text: {matches_by_text=}")
             console.print("[bold green]Triplets:[/bold green]")
             table = Table(show_header=True, header_style="bold magenta")
             table.add_column("Sentence")
@@ -162,11 +162,13 @@ class NPTerminalClient:
         console.print("[bold cyan]Enter path of txt or jsonl file:[/bold cyan]")
         fn = input("> ")
         self._upload_file(fn)
+        logging.info(f"parsed graphs in self: {self.hitl.extractor.parsed_graphs=}")
 
     def upload_txt(self, fn):
         console.print("[bold cyan]Parsing text...[/bold cyan]")
         with open(fn) as f:
             for line in tqdm(f):
+                logging.info(f"parsing line in upload_txt: {line.strip()}")
                 self.hitl.extractor.get_graphs(line.strip())
         console.print("[bold cyan]Done![/bold cyan]")
 

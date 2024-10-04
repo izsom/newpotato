@@ -1,5 +1,6 @@
 from collections import defaultdict
 from typing import Any, Dict, List
+import logging
 
 from newpotato.datatypes import Triplet
 
@@ -61,9 +62,12 @@ class Extractor:
         raise NotImplementedError
 
     def parse_text(self, text, **kwargs):
+        logging.info(f"parsing text in parse_text: {text=}")
         if text in self.parsed_graphs:
+            logging.info(f"Assumption is made, that text is in parsed graphs: {text=}")
             yield text, self.parsed_graphs[text]
         else:
+            logging.info(f"Not found in parsed graphs. Parsing text: {text=}")
             for sen, graph in self._parse_text(text):
                 self.parsed_graphs[sen] = graph
                 yield sen, graph
@@ -116,7 +120,8 @@ class Extractor:
             Dict[str, Any]: the graphs corresponding to the sentences of the text
         """
         graphs = {}
-        for sen, graph in self.parse_text(text):
+        for sen, graph in self.parse_text(text): # test is the entire text
+            logging.info(f"parsed sen: {sen=} and parsed graph: {graph=}")
             graphs[sen] = graph
             self.doc_ids[sen].add(doc_id)
         return graphs

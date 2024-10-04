@@ -341,12 +341,14 @@ class GraphBasedExtractor(Extractor):
     def extract_triplets_from_text(self, text, **kwargs):
         matches_by_text = {}
         for sen, triplets_and_subgraphs in self._infer_triplets(text):
+            logging.info(f"Triplets from text: {sen=}, {triplets_and_subgraphs=}")
             matches_by_text[sen] = {
                 "matches": [],
                 "rules_triggered": [],
                 "triplets": [],
             }
-            for triplet, subgraph in triplets_and_subgraphs:
+            logging.info(f"Extract triplets from text | found triplets: {triplets_and_subgraphs=}")
+            for triplet, subgraph in triplets_and_subgraphs: # TypeError: 'GraphMappedTriplet' object is not iterable
                 matches_by_text[sen]["rules_triggered"].append(subgraph)
                 matches_by_text[sen]["triplets"].append(triplet)
                 matches_by_text[sen]["matches"].append(
@@ -357,12 +359,12 @@ class GraphBasedExtractor(Extractor):
 
     def map_triplet(self, triplet, sentence, **kwargs):
         graph = self.parsed_graphs[sentence]
-        logging.debug(f"mapping triplet to {graph=}")
+        logging.debug(f"mapping triplet to {graph=}, when sentence is {sentence=}")
         pred_subgraph = (
-            graph.subgraph(triplet.pred, handle_unconnected="shortest_path")
+            graph.subgraph(triplet.pred, handle_unconnected="shortest_path") # defined in UDGraph
             if triplet.pred is not None
             else None
-        )
+        ) # a fully connected version of the subgraph described by triplet.pred
 
         logging.debug(f"triplet mapped: {pred_subgraph=}")
 
@@ -377,6 +379,7 @@ class GraphBasedExtractor(Extractor):
 
     def _match(self, matcher, sen_graph, attrs):
         # get the subgraphs that match the given matcher
+        logging.info(f"_match: the sen_graph for the matcher.match(): {sen_graph.tokens=}")
         for key, i, subgraphs in matcher.match(
             sen_graph.G, return_subgraphs=True, attrs=attrs
         ):
@@ -424,26 +427,33 @@ class GraphBasedExtractor(Extractor):
             inferred_node_indices, # a tuple of indices
             patt_graph, # a Graph object
         ), freq in triplet_matchers.most_common():
-
+            logging.debug(f"Triplet matcher loop _gen_raw_trip: {triplet_matcher=}")
+            logging.debug(f"{arg_root_indices=}")
+            logging.debug(f"{inferred_node_indices=}")
+            logging.debug(f"{patt_graph=}")
+            logging.debug(f"_gen_raw_triplets : {sen_graph=}")
             triplet_cands = set(
                 indices
                 for indices in self._match(triplet_matcher, sen_graph, attrs=("upos",))
             ) # is the indices of the tokens in the sentence that match the triplet_matcher
-            logging.debug(f"{triplet_cands=}")
+            logging.debug(f"{triplet_cands=}") # triplet_cands={(frozenset({16, 17, 14, 15}), UDGraph(15_handeln 14_Bernd 17_fahrlässig 16_grob))}
+            logging.debug(f"{inferred_node_indices=}")
             for triplet_cand, triplet_graph in triplet_cands:
-                logging.info(f"Type of triplet_graph: {type(triplet_graph)}")
                 inferred_nodes = set(
                     triplet_graph.nodes_by_lextop(inferred_node_indices) # defined in graph.py, part of class Graph
                 ) # returnes the nodes in a topological order, meaning source nodes precede the target nodes in a targeted graph
+                # inferred_nodes: the indices of the nodes of the triplet_graph that are on the node positions describedd by inferred_node_indices
                 arg_roots = triplet_graph.nodes_by_lextop(arg_root_indices)
                 logging.debug("==========================")
                 logging.debug(f"{triplet_cand=}")
                 logging.debug(f"{triplet_graph=}")
                 logging.debug(f"{inferred_nodes=}")
                 logging.debug(f"{arg_roots=}")
+                logging.debug(f"{pred_cands=}")
                 for pred_cand in pred_cands:
                     if not pred_cand.issubset(triplet_cand):
                         return # skip if pred_cand is not in the triplet
+                    # from now on pred_cand is part of the triplet_cand
                     covered_args = triplet_cand - pred_cand - inferred_nodes
                     logging.info(f"{pred_cand=}")
                     logging.info(f"{covered_args=}")
@@ -453,14 +463,15 @@ class GraphBasedExtractor(Extractor):
                         else None
                         for arg_root in arg_roots
                     ]
-                    logging.info(f"{args=}")
+                    logging.info(f"{args=}") # good example to understand: args=[[0], [5, 6]]
                     # if any arg is None, the triplet is partial
                     partial = any(arg is None for arg in args) # boolean
                     if partial and not include_partial: # when would it be partial? when is the root index None
                         continue
-                    triplet = Triplet(pred_cand, args, toks=sen_graph.tokens)
+                    triplet = Triplet(pred_cand, args, toks=sen_graph.tokens) # stores the integer indices of pred and args as integers
                     try:
-                        mapped_triplet = self.map_triplet(triplet, sen)
+                        mapped_triplet = self.map_triplet(triplet, sen) # returns a GraphMappedTriplet(triplet, pred_subgraph, arg_subgraphs)
+                        # 
                         logging.info(f"inferring this triplet: {triplet}")
                         logging.info(
                             f"based on this pattern: {patt_graph.to_penman(name_attr='name|upos')}"
@@ -469,6 +480,7 @@ class GraphBasedExtractor(Extractor):
                             f"sentences with this pattern: {self.patterns_to_sens[patt_graph]}"
                         )
                         logging.info(f"mapped triplet: {mapped_triplet}")
+                        logging.info(f"mapped triplet type : {type(mapped_triplet)}")
                         logging.info(f"sentence: {sen}")
                         yield sen, mapped_triplet
                     except (
@@ -529,6 +541,7 @@ class GraphBasedExtractor(Extractor):
             logging.debug(f"{sen_graph=}")
             logging.info(f"{sen_graph.tokens=}")
             logging.info(f"{sen_graph.G.nodes=}")
+            logging.info(f"{nx.to_latex(sen_graph.G, node_label='text')=}")
             # sen_graph is an instance of UDGraph of the given sentence
             pred_cands = {
                 indices: subgraph
