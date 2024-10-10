@@ -342,19 +342,27 @@ class GraphBasedExtractor(Extractor):
         matches_by_text = {}
         for sen, triplets_and_subgraphs in self._infer_triplets(text):
             logging.info(f"Triplets from text: {sen=}, {triplets_and_subgraphs=}")
-            matches_by_text[sen] = {
-                "matches": [],
-                "rules_triggered": [],
-                "triplets": [],
-            }
+            if sen not in matches_by_text.keys():
+                matches_by_text[sen] = {
+                    "matches": [],
+                    "rules_triggered": [],
+                    "triplets": [],
+                }
             logging.info(f"Extract triplets from text | found triplets: {triplets_and_subgraphs=}")
-            for triplet, subgraph in triplets_and_subgraphs: # TypeError: 'GraphMappedTriplet' object is not iterable
-                matches_by_text[sen]["rules_triggered"].append(subgraph)
-                matches_by_text[sen]["triplets"].append(triplet)
-                matches_by_text[sen]["matches"].append(
-                    {"REL": None, "ARG0": None, "ARG1": None}
-                )
-
+            # for triplet, subgraph in triplets_and_subgraphs: # TypeError: 'GraphMappedTriplet' object is not iterable
+            #     matches_by_text[sen]["rules_triggered"].append(subgraph)
+            #     matches_by_text[sen]["triplets"].append(triplet)
+            #     matches_by_text[sen]["matches"].append(
+            #         {"REL": None, "ARG0": None, "ARG1": None}
+            #     )
+            
+            matches_by_text[sen]["rules_triggered"].append(triplets_and_subgraphs)
+            matches_by_text[sen]["triplets"].append(triplets_and_subgraphs)
+            matches_by_text[sen]["matches"].append(
+                {"REL": None, "ARG0": None, "ARG1": None}
+            )
+            
+        logging.info(f"Extract triplets from text | {matches_by_text=}")
         return matches_by_text
 
     def map_triplet(self, triplet, sentence, **kwargs):
@@ -541,6 +549,7 @@ class GraphBasedExtractor(Extractor):
             logging.debug(f"{sen_graph=}")
             logging.info(f"{sen_graph.tokens=}")
             logging.info(f"{sen_graph.G.nodes=}")
+            logging.info(f"{sen_graph.to_dot()=}")
             logging.info(f"{nx.to_latex(sen_graph.G, node_label='text')=}")
             # sen_graph is an instance of UDGraph of the given sentence
             pred_cands = {
