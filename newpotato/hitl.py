@@ -50,16 +50,19 @@ class HITLManager:
         self.extractor = Extractor.from_json(extractor_data)
 
     def load_triplets(self, triplet_data, oracle=False):
+        logging.info(f"loading the triplets: {triplet_data=}")
         text_to_triplets = {
-            tuple_if_list(item["text"]): [
+            tuple_if_list(item["text"]): [ # satz
                 (
                     Triplet.from_json(triplet[0]),
                     triplet[1],
                 )
-                for triplet in item["triplets"]
+                for triplet in item["triplets"] # triplet of form [[{'pred': [8], 'args': [[0], [2, 3, 4, 5, 6]]
             ]
             for item in triplet_data
-        }
+        } # triplet_data is a list of dicts | it is basically the content of the hitl file
+        # each dict has a key 'text' containing the sentence and a key 'triplets' containing the triplets in that sentence
+        # each triplet is a list of two elements: the triplet and a boolean indicating whether it is positive or negative
 
         if oracle:
             self.oracle = text_to_triplets

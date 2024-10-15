@@ -182,19 +182,22 @@ class GraphBasedExtractor(Extractor):
         triplet_graphs_by_pred = defaultdict(Counter)
         arg_graphs_by_pred = defaultdict(Counter)
         all_arg_graphs = Counter()
+        logging.info(f"Get patterns: {text_to_triplets=}")
+        # a dict the key is the sentence and the value is a list of triplets in the sentence and a boolean value
         for text, triplets in text_to_triplets.items():
             # toks = self.get_tokens(text)
             logging.debug(f"{text=}")
             graph = self.parsed_graphs[text]
             logging.debug(graph.to_dot())
-            lemmas = self.get_lemmas(text)
+            lemmas = self.get_lemmas(text) # get the lemmas of the words in the sentence
             for triplet, positive in triplets:
                 logging.debug(f"{triplet=}")
+                logging.debug(f"{type(triplet)=}") # =<class 'newpotato.datatypes.GraphMappedTriplet'>
                 if triplet.pred is not None:
                     logging.debug(f"{triplet.pred_graph=}")
                     pred_graphs[triplet.pred_graph] += 1
                     patterns_to_sens[triplet.pred_graph].add(text)
-                    pred_lemmas = tuple(lemmas[i] for i in triplet.pred)
+                    pred_lemmas = tuple(lemmas[i] for i in triplet.pred) # get the lemmas of the predicate
                     # triplet_toks = set(chain(triplet.pred, triplet.arg_roots))
                     triplet_toks = set(chain(triplet.pred, *triplet.args))
                 else:
@@ -222,6 +225,7 @@ class GraphBasedExtractor(Extractor):
                     tuple(triplet_graph.index_nodes(triplet.arg_roots)),
                     tuple(triplet_graph.index_inferred_nodes()),
                 )
+                logging.info(f"Triplet_graphs Counter gets this value: {pattern_key=}")
                 triplet_graphs[pattern_key] += 1
                 triplet_graphs_by_pred[pred_lemmas][pattern_key] += 1
                 patterns_to_sens[triplet_graph].add(text)
@@ -257,13 +261,13 @@ class GraphBasedExtractor(Extractor):
                 patterns.append(((graph.G,), (), label))
             else:
                 patterns.append(((graph[0].G,), (), label))
-            logging.info(f"ZSOM --- {graph.to_penman()=}")
-        logging.info(f"ZSOM --- {patterns=}")
+            logging.info(f"Matcher from graph: {graph.to_penman()=}")
+        logging.info(f"Matcher from graph: {patterns=}")
 
         matcher = GraphFormulaPatternMatcher(
             patterns, converter=None, case_sensitive=False
         )
-        logging.info(f"ZSOM --- {matcher=}")
+        logging.info(f"Matcher from graph: {matcher=}")
         return matcher
 
     def _get_triplet_matchers(self):
@@ -312,7 +316,6 @@ class GraphBasedExtractor(Extractor):
         self.pred_matcher = self._get_matcher_from_graphs(
             self.pred_graphs, label="PRED", threshold=1
         )
-        logging.info(f"pred_matcher ---- {self.pred_matcher=}")
         self.arg_matcher = self._get_matcher_from_graphs(
             self.all_arg_graphs, label="ARG", threshold=1
         )
