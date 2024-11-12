@@ -117,6 +117,7 @@ class NPTerminalClient:
 
     def print_rules(self):
         self.hitl.get_rules()
+        logging.info(f"rules in print_rules: {self.hitl.get_rules()=}")
         self.hitl.print_rules(console)
 
     def print_triplets(self, triplets_by_sen, max_n=None):

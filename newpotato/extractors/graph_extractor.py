@@ -191,8 +191,7 @@ class GraphBasedExtractor(Extractor):
             logging.debug(graph.to_dot())
             lemmas = self.get_lemmas(text) # get the lemmas of the words in the sentence
             for triplet, positive in triplets:
-                logging.debug(f"{triplet=}")
-                logging.debug(f"{type(triplet)=}") # =<class 'newpotato.datatypes.GraphMappedTriplet'>
+                logging.debug(f"{triplet=}") # =<class 'newpotato.datatypes.GraphMappedTriplet'>
                 if triplet.pred is not None:
                     logging.debug(f"{triplet.pred_graph=}")
                     pred_graphs[triplet.pred_graph] += 1
@@ -271,7 +270,7 @@ class GraphBasedExtractor(Extractor):
         return matcher
 
     def _get_triplet_matchers(self):
-        logging.info(f"{self.triplet_graphs=}")
+        logging.info(f"{self.triplet_graphs=}") # is a counter object, with the value of pattern_key as key and the frequency as value
         return Counter(
             {
                 (
@@ -319,8 +318,8 @@ class GraphBasedExtractor(Extractor):
         self.arg_matcher = self._get_matcher_from_graphs(
             self.all_arg_graphs, label="ARG", threshold=1
         )
-        self.triplet_matchers = self._get_triplet_matchers()
-        self.triplet_matchers_by_pred = self._get_triplet_matchers_by_pred()
+        self.triplet_matchers = self._get_triplet_matchers() # returns a counter object
+        self.triplet_matchers_by_pred = self._get_triplet_matchers_by_pred() # returns a dictionary of counter objects with pred lemma as key
         self.n_rules = len(self.pred_matcher.patts)
 
     def get_rules(self, text_to_triplets, **kwargs):
@@ -337,6 +336,9 @@ class GraphBasedExtractor(Extractor):
         console.print(f"{self.pred_graphs.most_common(50)=}")
         console.print(f"{self.all_arg_graphs.most_common(50)=}")
         console.print(f"{self.triplet_graphs.most_common(50)=}")
+        for udg in self.triplet_graphs:
+            # console.print(f"{udg[0]}")
+            console.print(f"{UDGraph.to_penman(udg[0])}")
 
     def get_n_rules(self):
         return self.n_rules
