@@ -336,9 +336,17 @@ class GraphBasedExtractor(Extractor):
         console.print(f"{self.pred_graphs.most_common(50)=}")
         console.print(f"{self.all_arg_graphs.most_common(50)=}")
         console.print(f"{self.triplet_graphs.most_common(50)=}")
+        logging.info(f"Writing rules to file...")
         for udg in self.triplet_graphs:
-            # console.print(f"{udg[0]}")
-            console.print(f"{UDGraph.to_penman(udg[0])}")
+            # console.print(f"{udg}")
+            f = open("C:/Users/zsomb/OneDrive - TU Wien/egyetem/TU WIEN/DataScience/MasterThesis/code/F_voetutor/VOE-tutor/PoolOfRules/graphsOUT.txt", "a")
+            f.write(f"Annotation is:{udg[0].text}\n")
+            f.write(f"Penman: {UDGraph.to_penman(udg[0])}\n")
+            f.write(f"Dot: {UDGraph.to_dot(udg[0])}\n")
+            f.write("--------------------\n")
+            f.close()            
+            # console.print(f"{UDGraph.to_penman(udg[0])}")
+        logging.info(f"Writing rules to file done")
 
     def get_n_rules(self):
         return self.n_rules
@@ -373,6 +381,7 @@ class GraphBasedExtractor(Extractor):
     def map_triplet(self, triplet, sentence, **kwargs):
         graph = self.parsed_graphs[sentence]
         logging.debug(f"mapping triplet to {graph=}, when sentence is {sentence=}")
+        logging.debug(f"The dot of the graph: {graph.to_dot()=}")
         pred_subgraph = (
             graph.subgraph(triplet.pred, handle_unconnected="shortest_path") # defined in UDGraph
             if triplet.pred is not None
@@ -465,7 +474,7 @@ class GraphBasedExtractor(Extractor):
                 logging.debug(f"{pred_cands=}")
                 for pred_cand in pred_cands:
                     if not pred_cand.issubset(triplet_cand):
-                        return # skip if pred_cand is not in the triplet
+                        continue  # skip if pred_cand is not in the triplet
                     # from now on pred_cand is part of the triplet_cand
                     covered_args = triplet_cand - pred_cand - inferred_nodes
                     logging.info(f"{pred_cand=}")
@@ -555,7 +564,7 @@ class GraphBasedExtractor(Extractor):
             logging.info(f"{sen_graph.tokens=}")
             logging.info(f"{sen_graph.G.nodes=}")
             logging.info(f"{sen_graph.to_dot()=}")
-            logging.info(f"{nx.to_latex(sen_graph.G, node_label='text')=}")
+            # logging.info(f"{nx.to_latex(sen_graph.G, node_label='text')=}")
             # sen_graph is an instance of UDGraph of the given sentence
             pred_cands = {
                 indices: subgraph

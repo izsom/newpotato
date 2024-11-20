@@ -207,12 +207,73 @@ class NPTerminalClient:
                     console.print("[bold red]invalid choice[/bold red]")
                 else:
                     get_triplets_from_user(sen, self.hitl, console)
+                    
+    def sen_2_dot(self):
+        console.print(
+            "Type the sentence your want to convert to dot format."
+        )
+        raw_query = input("> ")
+        for sen, sen_graph in self.hitl.extractor.parse_text(raw_query):
+            print(sen_graph.to_dot())
+            # logging.info(f"{sen_graph.to_dot()=}")               
+    
+    def delete_triplet(self):
+        console.print(
+            "Type the start of the sentence from which a triplet needs to be deleted."
+        )
+        raw_query = input("> ")
+        query = raw_query.strip().lower()
+        triplets = self.hitl.get_true_triplets()
+        sentences = triplets.keys()
+        if not query:
+            logging.info("no query, returning")
+            return
+        else:
+            cands = [
+                sen
+                for sen in sentences
+                if sen.lower().startswith(query)
+            ]
+            if len(cands) > 20:
+                console.print("more than 20 matches, please refine")
+                logging.info("more than 20 matches, please refine")
+            if len(cands) == 0:
+                console.print("[bold red]no matches found[bold red]")
+                return
+            for i, sen in enumerate(cands):
+                console.print(f"{i}\t{sen}")
+
+            console.print("Enter ID of the sentence you want to delete the triplet from")
+            choice = input("> ")
+            try:
+                sen = cands[int(choice)]
+            except (ValueError, IndexError):
+                console.print("[bold red]invalid choice[/bold red]")
+            else:
+                logging.info(f"deleting triplets for {sen=}")
+                # console.print("[bold cyan]Enter the triplet to delete:[/bold cyan]")
+                # triplet_str = input("> ")
+                trip_of_sen = triplets[sen]
+                for i, triplet in enumerate(trip_of_sen):
+                    console.print(f"{i}\t{triplet}")
+                console.print("Enter ID of the triplet you want to delete")
+                choice_triplet = input("> ")
+                try:
+                    triplet2del = trip_of_sen[int(choice_triplet)]
+                except (ValueError, IndexError):
+                    console.print("[bold red]invalid choice[/bold red]")
+                else:
+                    logging.info(f"deleting triplet {triplet2del=} from {sen=}")
+                    self.hitl.delete_triplet(sen, triplet2del)
+                
+        
+        # self.hitl.delete_triplet(text, triplet_str)
 
     def _run(self):
         while True:
             self.print_status()
             console.print(
-                "[bold cyan]Choose an action:\n\t(U)pload\n\t(G)raphs\n\t(A)nnotate\n\t(R)ules\n\t(S)uggest\n\t(I)nference\n\t(E)valuate\n\t(L)oad\n\t(W)rite\n\t(P)atterns\n\t(C)lear\n\t(Q)uit\n\t(H)elp[/bold cyan]"
+                "[bold cyan]Choose an action:\n\t(U)pload\n\t(G)raphs\n\t(A)nnotate\n\t(R)ules\n\t(S)uggest\n\t(I)nference\n\t(E)valuate\n\t(L)oad\n\t(W)rite\n\t(P)atterns\n\t(C)lear\n\t(T)oDot\n\t(D)elete\n\t(Q)uit\n\t(H)elp[/bold cyan]"
             )
             choice = input("> ").upper()
             if choice in ("S", "I") and not self.hitl.extractor.is_trained:
@@ -241,6 +302,10 @@ class NPTerminalClient:
                 self.write_patterns_to_file()
             elif choice == "C":
                 self.clear_console()
+            elif choice == "D":
+                self.delete_triplet()
+            elif choice == "T":
+                self.sen_2_dot()
             elif choice == "Q":
                 console.print("[bold red]Exiting...[/bold red]")
                 break
@@ -258,6 +323,7 @@ class NPTerminalClient:
                     + "\t(W)rite: Write HITL state to file\n"
                     + "\t(P)atterns: Write extractor patterns to file\n"
                     + "\t(C)lear: Clear the console\n"
+                    + "\t(D)elete: Delete a triplet\n"
                     + "\t(Q)uit: Exit the program\n"
                     + "\t(H)elp: Show this help message\n"
                 )
