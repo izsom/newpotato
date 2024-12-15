@@ -70,7 +70,7 @@ class Extractor:
             logging.info(f"Not found in parsed graphs. Parsing text: {text=}")
             for sen, graph in self._parse_text(text):
                 self.parsed_graphs[sen] = graph
-                yield sen, graph
+                yield sen, graph # graph is okay but sen is zero
 
     def _parse_pretokenized(self, sen_tuple):
         if sen_tuple not in self.parsed_graphs:

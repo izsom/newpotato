@@ -18,7 +18,31 @@ def print_tokens(sentence, extractor, console):
     tokens = extractor.get_tokens(sentence)
     console.print("[bold cyan]Tokens:[/bold cyan]")
     console.print(" ".join(f"{i}_{tok}" for i, tok in enumerate(tokens)))
-
+    
+def print_lemmas(sentence, extractor, console):
+    lemmas = extractor.get_lemmas(sentence)
+    console.print("[bold cyan]Lemmas:[/bold cyan]")
+    console.print(" ".join(f"{i}_{lemma}" for i, lemma in enumerate(lemmas)))
+    
+def find_missing_number(lst: list):
+    # Find the number that is missing from the list if any else return None
+    min_val = min(lst)
+    max_val = max(lst)
+    full_range = set(range(min_val, max_val + 1))
+    missing_numbers = full_range - set(lst)
+    if not missing_numbers:
+        return None
+    else: 
+        return missing_numbers.pop()
+    
+def get_index_mapping(l1 :list, l2: list) -> dict:
+    # get a dict to get a mapping for the indexing
+    missing = find_missing_number(l2)
+    if missing is not None:
+        map_dict = dict(zip(l1, [i if i < find_missing_number(l2) else i+1 for i in l1 ]))
+        return map_dict
+    else:
+        return dict(zip(l1, l1))
 
 def _get_single_triplet_from_user(console):
     annotation = input("> ")
@@ -62,10 +86,19 @@ def get_single_triplet_from_user(sentence, extractor, console, expect_mappable=T
         if raw_triplet == "O":
             # oracle
             return "O"
-
-        pred, args = raw_triplet
+        
+        pred_pre, args_pre = raw_triplet
+        logging.debug(f"{pred_pre=}, {args_pre=}")
         graph = extractor.parsed_graphs[sentence]
-        triplet = Triplet(pred, args, toks=graph.tokens)
+        # if one want to use the tokens
+        # map_dict = get_index_mapping(list(range(len(extractor.get_lemmas(sentence)))), graph.lextop)
+        # pred = tuple(map_dict[i] for i in pred_pre)
+        # args = [tuple(map_dict[i] for i in arg) for arg in args_pre]
+        pred = pred_pre
+        args = args_pre
+        logging.debug(f"{pred=}, {args=}") # pred=(4,), args=[(0,), (5, 6)] -- Schadenersatzanspruch(Paula, gegen_Gustav)
+        triplet = Triplet(pred, args, toks=graph.tokens) # graph is an UDGraph object
+        logging.info(f"Triplet was created: {triplet=}")
         mapped_triplet = extractor.map_triplet(triplet, sentence)
         if expect_mappable and mapped_triplet is False:
             console.print(
@@ -78,6 +111,7 @@ def get_single_triplet_from_user(sentence, extractor, console, expect_mappable=T
 
 def get_triplets_from_user(sentence, hitl, console):
     print_tokens(sentence, hitl.extractor, console)
+    # print_lemmas(sentence, hitl.extractor, console)
 
     while True:
         triplet = get_single_triplet_from_user(sentence, hitl.extractor, console)

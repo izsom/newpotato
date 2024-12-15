@@ -146,6 +146,7 @@ class GraphBasedExtractor(Extractor):
         Returns:
             TODO
         """
+        logging.info(f"Parse sen tuple: {sen_tuple=}")
         graph = self.text_parser.parse_pretokenized(sen_tuple)
         return sen_tuple, graph
 
@@ -380,8 +381,8 @@ class GraphBasedExtractor(Extractor):
 
     def map_triplet(self, triplet, sentence, **kwargs):
         graph = self.parsed_graphs[sentence]
+        logging.info(f"Triplet to map: {triplet.pred=}")
         logging.debug(f"mapping triplet to {graph=}, when sentence is {sentence=}")
-        logging.debug(f"The dot of the graph: {graph.to_dot()=}")
         pred_subgraph = (
             graph.subgraph(triplet.pred, handle_unconnected="shortest_path") # defined in UDGraph
             if triplet.pred is not None
@@ -491,6 +492,7 @@ class GraphBasedExtractor(Extractor):
                     if partial and not include_partial: # when would it be partial? when is the root index None
                         continue
                     triplet = Triplet(pred_cand, args, toks=sen_graph.tokens) # stores the integer indices of pred and args as integers
+                    logging.info(f"{triplet=}")
                     try:
                         mapped_triplet = self.map_triplet(triplet, sen) # returns a GraphMappedTriplet(triplet, pred_subgraph, arg_subgraphs)
                         # 
